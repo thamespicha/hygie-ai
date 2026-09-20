@@ -32,6 +32,52 @@ const responseSchema: Schema = {
   required: ["credibilityScore", "verdict", "explanation", "correctFacts", "actionPlan", "communityNotesDraft", "platformReportGuide", "sourcesCited"]
 };
 
+async function generateWithFallback(promptData: any[], systemInstruction: string, responseSchema: Schema) {
+  // Ordered from fastest/cheapest to most advanced/experimental
+  const fallbackChain = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-live-preview" 
+  ];
+
+  let lastError = null;
+
+  // Loop through the models sequentially
+  for (const modelName of fallbackChain) {
+    try {
+      console.log(`🔄 Attempting to use model: ${modelName}`);
+      
+      const currentModel = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction,
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+        },
+      });
+
+      // If this succeeds, it returns the result and instantly exits the loop
+      const result = await currentModel.generateContent(promptData);
+      console.log(`✅ Success with model: ${modelName}`);
+      
+      return result; 
+
+    } catch (error: any) {
+      // If it fails (e.g., 503 error), catch it, log it, and let the loop continue to the next model
+      console.warn(`⚠️ Model ${modelName} failed. Reason: ${error.message}`);
+      lastError = error;
+    }
+  }
+
+  // If the loop finishes and absolutely every model failed, throw a final error so the API doesn't hang
+  console.error("❌ All models in the fallback chain failed.");
+  throw new Error(`Fallback cascade exhausted. Last error: ${lastError?.message}`);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -121,16 +167,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.6-flash",
-      systemInstruction,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-      },
-    });
-
-    const aiResult = await model.generateContent(promptData);
+    const aiResult = await generateWithFallback(promptData, systemInstruction, responseSchema);
     const hygieReport = JSON.parse(aiResult.response.text());
 
     const report = await prisma.medReport.create({
