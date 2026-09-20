@@ -191,7 +191,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       reportId: report.id,
-      reportUrl: `https://your-ngrok-url.app/report/${report.id}`,
+      verdict: hygieReport.verdict,
+      credibilityScore: hygieReport.credibilityScore,
+      explanation: hygieReport.explanation,
+      reportUrl: `https://hygie-ai.vercel.app/report/${report.id}`,
       data: hygieReport
     });
 
