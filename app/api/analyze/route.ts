@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
     const image = formData.get("image") as File | null;
     const text = formData.get("text") as string | null;
     const url = formData.get("url") as string | null;
+    const latRaw = formData.get("latitude") as string | null;
+    const lonRaw = formData.get("longitude") as string | null;
+
+    const latitude = latRaw ? parseFloat(latRaw) : null;
+    const longitude = lonRaw ? parseFloat(lonRaw) : null;
 
     if (!image && !text && !url) {
       return NextResponse.json({ error: "Please provide an image, text, or URL to analyze." }, { status: 400 });
@@ -75,6 +80,12 @@ export async function POST(req: NextRequest) {
       promptData.push(`Analyze this health claim: ${extractedText}`);
     }
 
+    if (latitude && longitude) {
+      promptData.push(
+        `User geographic coordinates: Latitude ${latitude}, Longitude ${longitude}. Tailor any emergency numbers, regional health authority citations, and facility recommendations to this location.`
+      );
+    }
+
     const model = genAI.getGenerativeModel({
       model: "gemini-3.6-flash",
       systemInstruction,
@@ -92,6 +103,8 @@ export async function POST(req: NextRequest) {
         imageUrl: base64ImageUrl ? "Available" : null,
         sourceUrl: url || null,
         userInputText: extractedText || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
         credibilityScore: hygieReport.credibilityScore,
         verdict: hygieReport.verdict,
         explanation: hygieReport.explanation,

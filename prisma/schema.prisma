@@ -23,6 +23,8 @@ model MedReport {
   sourceUrl        String?
   imageUrl         String?
   rawExtractedText String?
+  latitude         Float?
+  longitude        Float?
 
   // Output
   credibilityScore Int
