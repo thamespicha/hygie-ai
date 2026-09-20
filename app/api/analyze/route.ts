@@ -34,17 +34,35 @@ const responseSchema: Schema = {
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const image = formData.get("image") as File | null;
-    const text = formData.get("text") as string | null;
-    const url = formData.get("url") as string | null;
-    const latRaw = formData.get("latitude") as string | null;
-    const lonRaw = formData.get("longitude") as string | null;
+    const contentType = req.headers.get("content-type") || "";
+    
+    let image: File | null = null;
+    let text: string | null = null;
+    let url: string | null = null;
+    let latRaw: string | number | null = null;
+    let lonRaw: string | number | null = null;
+    let jsonBase64Image: string | null = null;
 
-    const latitude = latRaw ? parseFloat(latRaw) : null;
-    const longitude = lonRaw ? parseFloat(lonRaw) : null;
+    if (contentType.includes("application/json")) {
+      const json = await req.json();
+      text = json.text || null;
+      url = json.url || null;
+      latRaw = json.latitude || null;
+      lonRaw = json.longitude || null;
+      jsonBase64Image = json.imageBase64 || json.image || null; 
+    } else {
+      const formData = await req.formData();
+      image = formData.get("image") as File | null;
+      text = formData.get("text") as string | null;
+      url = formData.get("url") as string | null;
+      latRaw = formData.get("latitude") as string | null;
+      lonRaw = formData.get("longitude") as string | null;
+    }
 
-    if (!image && !text && !url) {
+    const latitude = latRaw ? parseFloat(latRaw.toString()) : null;
+    const longitude = lonRaw ? parseFloat(lonRaw.toString()) : null;
+
+    if (!image && !jsonBase64Image && !text && !url) {
       return NextResponse.json({ error: "Please provide an image, text, or URL to analyze." }, { status: 400 });
     }
 
@@ -52,15 +70,33 @@ export async function POST(req: NextRequest) {
     let extractedText = text || "";
     let base64ImageUrl = "";
 
-    if (image) {
-      const arrayBuffer = await image.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      base64ImageUrl = buffer.toString("base64");
+    if (image || jsonBase64Image) {
+      let mimeType = "image/jpeg"; // default for json base64
+      
+      if (image) {
+        const arrayBuffer = await image.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        base64ImageUrl = buffer.toString("base64");
+        mimeType = image.type;
+      } else if (jsonBase64Image) {
+        // Handle data URL prefix if sent from client (e.g. data:image/png;base64,...)
+        if (jsonBase64Image.startsWith("data:image")) {
+          const matches = jsonBase64Image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+          if (matches) {
+            mimeType = matches[1];
+            base64ImageUrl = matches[2];
+          } else {
+            base64ImageUrl = jsonBase64Image;
+          }
+        } else {
+          base64ImageUrl = jsonBase64Image;
+        }
+      }
       
       promptData.push({
         inlineData: {
           data: base64ImageUrl,
-          mimeType: image.type,
+          mimeType: mimeType,
         },
       });
       promptData.push("Analyze the health claims in this screenshot.");
