@@ -75,22 +75,21 @@ export async function POST(req: NextRequest) {
       
       if (image) {
         const arrayBuffer = await image.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        base64ImageUrl = buffer.toString("base64");
+        base64ImageUrl = Buffer.from(arrayBuffer)
+          .toString("base64")
+          .replace(/\s+/g, ""); // Strip any rogue whitespace
         mimeType = image.type;
       } else if (jsonBase64Image) {
-        // Handle data URL prefix if sent from client (e.g. data:image/png;base64,...)
-        if (jsonBase64Image.startsWith("data:image")) {
-          const matches = jsonBase64Image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-          if (matches) {
-            mimeType = matches[1];
-            base64ImageUrl = matches[2];
-          } else {
-            base64ImageUrl = jsonBase64Image;
-          }
-        } else {
-          base64ImageUrl = jsonBase64Image;
+        // Try to extract mimeType if provided in a data URL prefix
+        const matches = jsonBase64Image.match(/^data:(image\/\w+);base64,/);
+        if (matches) {
+          mimeType = matches[1];
         }
+        
+        // Clean the incoming Base64 string from the iOS Shortcut (or elsewhere)
+        base64ImageUrl = jsonBase64Image
+          .replace(/^data:image\/\w+;base64,/, "") // 1. Strip the data:image prefix
+          .replace(/\s+/g, "");                    // 2. Strip all line breaks and spaces
       }
       
       promptData.push({
