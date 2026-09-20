@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"
+    "lint": "eslint"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
