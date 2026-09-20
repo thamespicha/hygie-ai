@@ -194,6 +194,9 @@ export async function POST(req: NextRequest) {
       verdict: hygieReport.verdict,
       credibilityScore: hygieReport.credibilityScore,
       explanation: hygieReport.explanation,
+      correctFacts: hygieReport.correctFacts,
+      actionPlan: hygieReport.actionPlan,
+      searchQueryMap: hygieReport.searchQueryMap || null,
       reportUrl: `https://hygie-ai.vercel.app/report/${report.id}`,
       data: hygieReport
     });
