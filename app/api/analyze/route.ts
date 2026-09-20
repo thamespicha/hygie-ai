@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 
-const prisma = new PrismaClient();
+export const dynamic = "force-dynamic";
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const systemInstruction = `You are Hygie AI, a highly accurate, objective public health analyst and fact-checker. 
