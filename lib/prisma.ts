@@ -5,9 +5,15 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Intercept Vercel's locked URL and replace the warning-triggering parameter
+const connectionUrl = process.env.DATABASE_URL?.replace(
+  "sslmode=require",
+  "sslmode=verify-full"
+);
+
 function createPrismaClient() {
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString: connectionUrl || process.env.DATABASE_URL!,
   });
   return new PrismaClient({ adapter });
 }
